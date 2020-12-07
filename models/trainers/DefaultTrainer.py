@@ -6,17 +6,19 @@ import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
+from PyHessian.pyhessian import hessian  # Hessian computation
 from models import GeneralModel
 from models.statistics import Metrics
 from models.statistics.Flops import FLOPCounter
 from models.statistics.Saliency import Saliency
 from utils.model_utils import find_right_model
 from utils.system_utils import *
+from PyHessian.density_plot import get_esd_plot  # ESD plot
+from PyHessian.pyhessian.utils import group_product, group_add, normalization, get_params_grad, hessian_vector_product, \
+    orthnormal
 
 
 class DefaultTrainer:
-
     """
     Implements generalised computer vision classification with pruning
     """
@@ -79,7 +81,6 @@ class DefaultTrainer:
 
         # forward pass
         accuracy, loss, out = self._forward_pass(x, y, train=train)
-
         # backward pass
         if train:
             self._backward_pass(loss)
@@ -156,8 +157,12 @@ class DefaultTrainer:
             self._log(batch_num)
 
             self._check_exit_conditions_epoch_iteration()
-
-        self.out("\n")
+        # hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(), data=batch, cuda=True)
+        # density_eigen, density_weight = hessian_comp.density()
+        # print(density_weight[0:9])
+        # print(density_eigen[0:9])
+        # top_eigenvalues, top_eigenvector = hessian_comp.eigenvalues(top_n=10)
+        # return top_eigenvector
 
     def _log(self, batch_num: int):
         """ logs to terminal and tensorboard if the time is right"""
@@ -247,7 +252,29 @@ class DefaultTrainer:
 
             if self._arguments.skip_first_plot:
                 self._metrics.handle_weight_plotting(0, trainer_ns=self)
-
+            overlap = 0
+            count_large = 0
+            if self._arguments.prune_criterion == "EarlySNIP":
+                while count_large < 6:
+                    self.out("Network has not reached stable state")
+                    self.out(f"\n\n{PRINTCOLOR_BOLD}EPOCH {epoch} {PRINTCOLOR_END} \n\n")
+                    # do epoch
+                    self._epoch_iteration()
+                    overlap = 0
+                    for i in range(5):
+                        hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(),
+                                               data=next(iter(self._test_loader)), cuda=True)
+                        Hg = hessian_vector_product(hessian_comp.gradsH, hessian_comp.params, hessian_comp.gradsH)
+                        gTHg = group_product(Hg, hessian_comp.gradsH).cpu().item()
+                        normg = group_product(hessian_comp.gradsH, hessian_comp.gradsH).cpu().item()
+                        normHg = group_product(Hg, Hg).cpu().item()
+                        overlap += gTHg / (np.sqrt(normg) * np.sqrt(normHg))
+                    overlap /= (i + 1)
+                    if overlap >= 0.8:
+                        count_large += 1
+                    print('\n')
+                    print("overlap: " + str(overlap))
+                    epoch += 1
             # if snip we prune before training
             if self._arguments.prune_criterion in SINGLE_SHOT:
                 self._criterion.prune(self._arguments.pruning_limit,
@@ -318,6 +345,7 @@ class DefaultTrainer:
         if self._is_pruning_time(epoch):
             if self._is_not_finished_pruning():
                 self.out("\nPRUNING...\n")
+                # Here we call SNIP-it
                 self._criterion.prune(
                     percentage=self._arguments.pruning_rate,
                     train_loader=self._train_loader,
@@ -363,6 +391,7 @@ class DefaultTrainer:
     def _is_pruning_time(self, epoch: int):
         if self._arguments.prune_criterion == "EmptyCrit":
             return False
+        # Ma bet ballech abel ma ye2ta3 prune_freq epochs
         epoch -= self._arguments.prune_delay
         return (epoch % self._arguments.prune_freq) == 0 and \
                epoch > 0 and \

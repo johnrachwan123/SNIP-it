@@ -4,7 +4,7 @@
 
 [![Python 3.7](https://img.shields.io/badge/Python-3.7-3776AB.svg?logo=python)](https://www.python.org/) [![PyTorch 1.4](https://img.shields.io/badge/PyTorch-1.4-EE4C2C.svg?logo=pytorch)](https://pytorch.org/docs/1.4.0/) [![MIT](https://img.shields.io/badge/License-MIT-3DA639.svg?logo=open-source-initiative)](LICENSE)
 
-This repository is the **official** implementation of the paper [Pruning via Iterative Ranking of Sensitivity Statistics](https://arxiv.org/abs/2006.00896). 
+This repository is forked from the **official** implementation of the paper [Pruning via Iterative Ranking of Sensitivity Statistics](https://arxiv.org/abs/2006.00896). 
 Currently under review. Please use this preliminary BibTex entry when referring to our work:
 
 ```reference
@@ -25,12 +25,7 @@ archivePrefix = {arXiv},
 
 ### Content
 
-The repository implements novel pruning / compression algorithms for deep learning / neural networks. Additionally, it implements the shrinkage of actual tensors to really benefit from structured pruning without external hardware libraries. We implement:
-
-- Structured (node) pruning before training
-- Structured (node) pruning during training
-- Unstructured (weight) pruning before training 
-- Unstructured (weight) pruning during training
+Implementation of Early-SNIP, an unstructured iterative application of SNIP in a strategic point early in training.
 
 ### Setup
 
@@ -56,44 +51,17 @@ The repository implements novel pruning / compression algorithms for deep learni
 
 Some examples of training the models from the paper.
 
-#### Structured Pruning (SNAP-it)
+#### Unstructured Pruning (Early-SNIP)
 
-To run training for SNAP-it - our structured pruning before training algorithm - with a VGG16 on CIFAR10, run the following:
-
-```train
-python3 main.py --model VGG16 --data_set CIFAR10 --prune_criterion SNAPit --pruning_limit 0.93 --epochs 80
-```
-
-<img src="./pictures/__structured-VGG16-CIFAR10_acc_node_sparse.png" alt="drawing" width="500"/>
-
-| accuracy-drop | weight sparsity | node sparsity | cumulative training FLOPS reduction |
-|---------------|-----------------|---------------|-------------------------------------|
-| -1%           | 99%             | 93%           | 8 times                             |
-
-#### Unstructured Pruning (SNIP-it)
-
-To run training for SNIP-it - our unstructured pruning algorithm - with a ResNet18 on CIFAR10, run one of the following:
+To run training for Early-SNIP our unstructured pruning algorithm - with a ResNet18 on CIFAR10, run one of the following:
 
 ```train
-## during training
-python3 main.py --model ResNet18 --data_set CIFAR10 --prune_criterion SNIPitDuring --pruning_limit 0.98 --outer_layer_pruning --epochs 80 --prune_delay 4 --prune_freq 4
-## before training
-python3 main.py --model ResNet18 --data_set CIFAR10 --prune_criterion SNIPit --pruning_limit 0.98 --outer_layer_pruning --epochs 80 
+python3 main.py --model ResNet18 --data_set CIFAR10 --prune_criterion EarlySNIP --pruning_limit 0.98 --outer_layer_pruning --epochs 80
 ```
-<img src="./pictures/__unstructured-ResNet18-CIFAR10_acc_weight_sparse.png" alt="drawing" width="400"/>
 
 |                  | accuracy-drop | weight sparsity |
 |------------------|---------------|-----------------|
 | SNIP-it (during) | -0%           | 98%             |
-| SNIP-it (before) | -4%           | 98%             |
-
-#### Adversarial Evaluation
-
-To evaluate a model on adversarial attacks (for now only supported on unstructured), run:
-
-```eval
-python main.py --eval --model MLP5 --data_set MNIST --checkpoint_name <see_results_folder> --checkpoint_model MLP5_finished --attack CarliniWagner
-```
 
 ### Visualization
 

@@ -57,7 +57,7 @@ TRAIN_SET = "train"
 
 ZERO_SIGMA = -1 * 1e6
 
-SNIP_BATCH_ITERATIONS = 5
+SNIP_BATCH_ITERATIONS = 1
 
 HOYER_THERSHOLD = 1e-3
 
@@ -82,8 +82,9 @@ SINGLE_SHOT = [
     "SNIP",
     "SNIPit",
     "GRASP",
-    "IterativeGRASP",
-    "UnstructuredRandom"
+    "GraSPit",
+    "UnstructuredRandom",
+    "EarlySNIP"
 ]
 SINGLE_SHOT += STRUCTURED_SINGLE_SHOT
 DURING_TRAINING = [
@@ -105,6 +106,7 @@ alias = {
     "IMP": "IMP-global (during)",
     "L0": "L0 (during)",
     "GRASP": "GraSP (before)",
+    "GraSPit": "Iterative GraSP",
     "SNIP": "SNIP (before)",
     "GateDecorators": "GateDecorators (after)",
     "CNIPit": "CNIP-it (before)",
@@ -130,6 +132,7 @@ timing_names = {
     "IMP": "during",
     "L0": "during",
     "GRASP": "before",
+    "GraSPit": "before",
     "SNIP": "before",
     "GateDecorators": "after",
     "CNIPit": "before",
@@ -148,6 +151,7 @@ color_per_method = {
     "IMP": "#9467bd",
     "L0": "#d62728",
     "GRASP": "#ff7f0e",
+    "GraSPit": "#ff7f0e",
     "SNIP": "#7f7f7f",
     "GateDecorators": "#ff7f0e",
     "CNIPit": "#ff7f0e",
