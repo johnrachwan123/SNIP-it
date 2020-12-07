@@ -1,6 +1,5 @@
 
-# SNIP-it / SNAP-it
-## (Un)structured Pruning via Iterative Ranking of Sensitivity Statistics
+# Early-SNIP
 
 [![Python 3.7](https://img.shields.io/badge/Python-3.7-3776AB.svg?logo=python)](https://www.python.org/) [![PyTorch 1.4](https://img.shields.io/badge/PyTorch-1.4-EE4C2C.svg?logo=pytorch)](https://pytorch.org/docs/1.4.0/) [![MIT](https://img.shields.io/badge/License-MIT-3DA639.svg?logo=open-source-initiative)](LICENSE)
 
