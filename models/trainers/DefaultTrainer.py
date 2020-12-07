@@ -13,6 +13,7 @@ from models.statistics.Flops import FLOPCounter
 from models.statistics.Saliency import Saliency
 from utils.model_utils import find_right_model
 from utils.system_utils import *
+
 from PyHessian.density_plot import get_esd_plot  # ESD plot
 from PyHessian.pyhessian.utils import group_product, group_add, normalization, get_params_grad, hessian_vector_product, \
     orthnormal
@@ -252,28 +253,28 @@ class DefaultTrainer:
 
             if self._arguments.skip_first_plot:
                 self._metrics.handle_weight_plotting(0, trainer_ns=self)
-            overlap = 0
             count_large = 0
             if self._arguments.prune_criterion == "EarlySNIP":
-                while count_large < 6:
+                for i in range(16):
+                # while count_large < 6:
                     self.out("Network has not reached stable state")
                     self.out(f"\n\n{PRINTCOLOR_BOLD}EPOCH {epoch} {PRINTCOLOR_END} \n\n")
                     # do epoch
                     self._epoch_iteration()
-                    overlap = 0
-                    for i in range(5):
-                        hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(),
-                                               data=next(iter(self._test_loader)), cuda=True)
-                        Hg = hessian_vector_product(hessian_comp.gradsH, hessian_comp.params, hessian_comp.gradsH)
-                        gTHg = group_product(Hg, hessian_comp.gradsH).cpu().item()
-                        normg = group_product(hessian_comp.gradsH, hessian_comp.gradsH).cpu().item()
-                        normHg = group_product(Hg, Hg).cpu().item()
-                        overlap += gTHg / (np.sqrt(normg) * np.sqrt(normHg))
-                    overlap /= (i + 1)
-                    if overlap >= 0.8:
-                        count_large += 1
-                    print('\n')
-                    print("overlap: " + str(overlap))
+                    # overlap = 0
+                    # for i in range(5):
+                    #     hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(),
+                    #                            data=next(iter(self._test_loader)), cuda=True)
+                    #     Hg = hessian_vector_product(hessian_comp.gradsH, hessian_comp.params, hessian_comp.gradsH)
+                    #     gTHg = group_product(Hg, hessian_comp.gradsH).cpu().item()
+                    #     normg = group_product(hessian_comp.gradsH, hessian_comp.gradsH).cpu().item()
+                    #     normHg = group_product(Hg, Hg).cpu().item()
+                    #     overlap += gTHg / (np.sqrt(normg) * np.sqrt(normHg))
+                    # overlap /= (i + 1)
+                    # if overlap >= 0.8:
+                    #     count_large += 1
+                    # print('\n')
+                    # print("overlap: " + str(overlap))
                     epoch += 1
             # if snip we prune before training
             if self._arguments.prune_criterion in SINGLE_SHOT:
