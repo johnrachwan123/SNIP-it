@@ -13,10 +13,12 @@ from models.statistics.Flops import FLOPCounter
 from models.statistics.Saliency import Saliency
 from utils.model_utils import find_right_model
 from utils.system_utils import *
-
+from torch.optim.lr_scheduler import StepLR
 from PyHessian.density_plot import get_esd_plot  # ESD plot
 from PyHessian.pyhessian.utils import group_product, group_add, normalization, get_params_grad, hessian_vector_product, \
-    orthnormal
+    orthnormal, set_grad
+# from rigl_torch.RigL import RigLScheduler
+import gc
 
 
 class DefaultTrainer:
@@ -33,11 +35,15 @@ class DefaultTrainer:
                  train_loader: DataLoader,
                  test_loader: DataLoader,
                  metrics: Metrics,
-                 criterion: GeneralModel
+                 criterion: GeneralModel,
+                 scheduler: StepLR,
+                 # pruner: RigLScheduler
                  ):
 
         self._test_loader = test_loader
         self._train_loader = train_loader
+        self._stable = False
+        self._overlap_queue = []
         self._loss_function = loss
         self._model = model
         self._arguments = arguments
@@ -53,7 +59,8 @@ class DefaultTrainer:
         self._loss_buffer = []
         self._elapsed_buffer = []
         self._criterion = criterion
-
+        self._scheduler = scheduler
+        # self._pruner = pruner
         self.ts = None
 
         batch = next(iter(self._test_loader))
@@ -83,6 +90,7 @@ class DefaultTrainer:
         # forward pass
         accuracy, loss, out = self._forward_pass(x, y, train=train)
         # backward pass
+        # breakpoint()
         if train:
             self._backward_pass(loss)
 
@@ -129,25 +137,52 @@ class DefaultTrainer:
         self._model.insert_noise_for_gradient(self._arguments.grad_noise)
         if self._arguments.grad_clip > 0:
             torch.nn.utils.clip_grad_norm_(self._model.parameters(), self._arguments.grad_clip)
+        # if self._arguments.prune_criterion == "RigL" and self._pruner():
         self._optimizer.step()
         if self._model.is_maskable:
             self._model.apply_weight_mask()
 
     def _epoch_iteration(self):
         """ implementation of an epoch """
-
+        self._model.train()
         self.out("\n")
 
         self._acc_buffer, self._loss_buffer = self._metrics.update_epoch()
-
+        overlap = 0
+        proj_norm = 0
+        count = 0
         for batch_num, batch in enumerate(self._train_loader):
             self.out(f"\rTraining... {batch_num}/{len(self._train_loader)}", end='')
 
             if self._model.is_tracking_weights:
                 self._model.save_prev_weights()
 
+            # Perform one batch iteration
             acc, loss, elapsed = self._batch_iteration(*batch, self._model.training)
 
+            # hessian stuff
+            self._optimizer.zero_grad()
+            hessian_comp = hessian(self._model, self._loss_function,
+                                   data=batch, cuda=True)
+            # TEST
+            # eigenvalues, eigenvectors = hessian_comp.eigenvalues(maxIter=100, top_n=10)
+            # update = hessian_comp.woodbury_inverse(eigenvalues, eigenvectors)
+
+            # EXACT
+            # proj_norm += hessian_comp.norm_top_gradient(dim=10).detach().cpu() / group_product(hessian_comp.gradsH,
+            #                                                                                    hessian_comp.gradsH).detach().cpu()
+            # print(proj_norm/group_product(hessian_comp.gradsH, hessian_comp.gradsH))
+
+            # OVERLAP
+            Hg = hessian_vector_product(hessian_comp.gradsH, hessian_comp.params, hessian_comp.gradsH)
+            gTHg = group_product(Hg, hessian_comp.gradsH).detach().cpu()
+            normg = group_product(hessian_comp.gradsH, hessian_comp.gradsH).detach().cpu()
+            normHg = group_product(Hg, Hg).detach().cpu()
+            overlap += gTHg / ((torch.sqrt(normg) + 1e-6) * (torch.sqrt(normHg) + 1e-6))
+
+            count += 1
+            self._optimizer.zero_grad()
+            self._model.train()
             if self._model.is_tracking_weights:
                 self._model.update_tracked_weights(self._metrics.batch_train)
 
@@ -158,12 +193,11 @@ class DefaultTrainer:
             self._log(batch_num)
 
             self._check_exit_conditions_epoch_iteration()
-        # hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(), data=batch, cuda=True)
-        # density_eigen, density_weight = hessian_comp.density()
-        # print(density_weight[0:9])
-        # print(density_eigen[0:9])
-        # top_eigenvalues, top_eigenvector = hessian_comp.eigenvalues(top_n=10)
-        # return top_eigenvector
+            self._scheduler.step()
+        self._model.eval()
+        # if overlap / count > 0.85:
+        #     self._stable = True
+        print(overlap / count)
 
     def _log(self, batch_num: int):
         """ logs to terminal and tensorboard if the time is right"""
@@ -251,31 +285,20 @@ class DefaultTrainer:
                 f"{PRINTCOLOR_BOLD}Started training{PRINTCOLOR_END}"
             )
 
-            if self._arguments.skip_first_plot:
-                self._metrics.handle_weight_plotting(0, trainer_ns=self)
+            # if self._arguments.skip_first_plot:
+            #     self._metrics.handle_weight_plotting(0, trainer_ns=self)
             count_large = 0
             if self._arguments.prune_criterion == "EarlySNIP":
-                for i in range(16):
-                # while count_large < 6:
+                # for i in range(10):
+                while count_large < 6:
                     self.out("Network has not reached stable state")
                     self.out(f"\n\n{PRINTCOLOR_BOLD}EPOCH {epoch} {PRINTCOLOR_END} \n\n")
                     # do epoch
                     self._epoch_iteration()
-                    # overlap = 0
-                    # for i in range(5):
-                    #     hessian_comp = hessian(self._model, torch.nn.CrossEntropyLoss(),
-                    #                            data=next(iter(self._test_loader)), cuda=True)
-                    #     Hg = hessian_vector_product(hessian_comp.gradsH, hessian_comp.params, hessian_comp.gradsH)
-                    #     gTHg = group_product(Hg, hessian_comp.gradsH).cpu().item()
-                    #     normg = group_product(hessian_comp.gradsH, hessian_comp.gradsH).cpu().item()
-                    #     normHg = group_product(Hg, Hg).cpu().item()
-                    #     overlap += gTHg / (np.sqrt(normg) * np.sqrt(normHg))
-                    # overlap /= (i + 1)
-                    # if overlap >= 0.8:
-                    #     count_large += 1
-                    # print('\n')
-                    # print("overlap: " + str(overlap))
+                    if self._stable:
+                        break
                     epoch += 1
+
             # if snip we prune before training
             if self._arguments.prune_criterion in SINGLE_SHOT:
                 self._criterion.prune(self._arguments.pruning_limit,

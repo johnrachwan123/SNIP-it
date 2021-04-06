@@ -6,6 +6,7 @@ from models.statistics.Metrics import Metrics
 from utils.config_utils import *
 from utils.model_utils import *
 from utils.system_utils import *
+# from rigl_torch.RigL import RigLScheduler
 
 warnings.filterwarnings("ignore")
 
@@ -90,8 +91,23 @@ def main(
         OPTIMS, arguments.optimizer,
         params=model.parameters(),
         lr=arguments.learning_rate,
-        weight_decay=arguments.l2_reg if not arguments.l0 else 0
+        weight_decay=arguments.l2_reg if not arguments.l0 else 0,
+        # momentum=arguments.momentum if arguments.momentum else 0
     )
+    from torch.optim.lr_scheduler import StepLR
+    scheduler = StepLR(optimizer, step_size=30000, gamma=0.2)
+    # now, create the RigLScheduler object
+    # pruner = RigLScheduler(model,
+    #                        optimizer,
+    #                        dense_allocation=0.1,
+    #                        sparsity_distribution='uniform',
+    #                        T_end=5859,
+    #                        delta=100,
+    #                        alpha=0.3,
+    #                        grad_accumulation_n=1,
+    #                        static_topo=False,
+    #                        ignore_linear_layers=False,
+    #                        state_dict=None)
 
     if not arguments.eval:
 
@@ -106,7 +122,9 @@ def main(
             train_loader=train_loader,
             test_loader=test_loader,
             metrics=metrics,
-            criterion=criterion
+            criterion=criterion,
+            scheduler=scheduler,
+            # pruner=pruner
         )
 
         trainer.train()

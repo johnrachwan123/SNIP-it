@@ -78,7 +78,7 @@ def parse() -> argparse.Namespace:
     parser.add_argument('--l0_reg', default=1.0, type=float, help='l0 reg lambda hyperparam')
     parser.add_argument('--hoyer_reg', default=1.0, type=float, help='hoyer reg lambda hyperparam')
     parser.add_argument('--beta_ema', type=float, default=0.999, help="l0 reg beta ema hyperparam")
-
+    parser.add_argument('--momentum', type=float, default=0.0, help="momentum of SGD")
     """ str """
     # model-names
     parser.add_argument('--loss', default="CrossEntropy", type=str, help='loss-function model name')

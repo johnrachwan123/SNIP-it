@@ -14,6 +14,7 @@ from utils.constants import NUM_WORKERS, FLIP_CHANCE, DATASET_PATH, IMAGENETTE_D
 Handles loading datasets
 """
 
+
 def get_imagenette_loaders(arguments):
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -64,6 +65,7 @@ def get_imagewoof_loaders(arguments):
 
 def get_mnist_loaders(arguments):
     transformers = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+    transformers_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
     train_set = datasets.MNIST(
         DATASET_PATH,
         train=True,
@@ -74,10 +76,43 @@ def get_mnist_loaders(arguments):
         DATASET_PATH,
         train=False,
         download=True,
+        transform=transformers_test
+    )
+    return load(arguments, test_set, train_set)
+
+
+def get_fashionmnist_loaders(arguments):
+    transformers = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+    train_set = datasets.FashionMNIST(
+        DATASET_PATH,
+        train=True,
+        download=True,
+        transform=transformers
+    )
+    test_set = datasets.FashionMNIST(
+        DATASET_PATH,
+        train=False,
+        download=True,
         transform=transformers
     )
     return load(arguments, test_set, train_set)
 
+
+def get_kmnist_loaders(arguments):
+    transformers = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+    train_set = datasets.KMNIST(
+        DATASET_PATH,
+        train=True,
+        download=True,
+        transform=transformers
+    )
+    test_set = datasets.KMNIST(
+        DATASET_PATH,
+        train=False,
+        download=True,
+        transform=transformers
+    )
+    return load(arguments, test_set, train_set)
 
 def get_cifar10_loaders(arguments):
     mean = [0.485, 0.456, 0.406]
@@ -101,6 +136,21 @@ def get_cifar10_loaders(arguments):
         ]
     )
     train_set = datasets.CIFAR10(DATASET_PATH, train=True, download=True, transform=train_transforms)
+    test_set = datasets.CIFAR10(DATASET_PATH, train=False, download=True, transform=test_transforms)
+    return load(arguments, test_set, train_set)
+
+
+def get_SVHN_loaders(arguments):
+    mean = [0.5, 0.5, 0.5]
+    std = [0.5, 0.5, 0.5]
+    test_transforms = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ]
+    )
+
+    train_set = datasets.CIFAR10(DATASET_PATH, train=True, download=True)
     test_set = datasets.CIFAR10(DATASET_PATH, train=False, download=True, transform=test_transforms)
     return load(arguments, test_set, train_set)
 

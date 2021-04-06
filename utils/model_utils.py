@@ -14,6 +14,7 @@ models = {x: {} for x in types}
 Handles loading/init/saving of models and more
 """
 
+
 def _read_all_class_names():
     """
     private function that imports all class references in a dictionary
@@ -42,7 +43,10 @@ def _read_all_class_names():
     models[DATASETS]["IMAGENETTE"] = get_imagenette_loaders
     models[DATASETS]["IMAGEWOOF"] = get_imagewoof_loaders
     models[DATASETS]["MNIST"] = get_mnist_loaders
+    models[DATASETS]["fashion"] = get_fashionmnist_loaders
     models[DATASETS]["OMNIGLOT"] = get_omniglot_loaders
+    models[DATASETS]["SVHN"] = get_SVHN_loaders
+    models[DATASETS]["KMNIST"] = get_kmnist_loaders
 
 
 def find_right_model(type: str, name: str, **kwargs):
