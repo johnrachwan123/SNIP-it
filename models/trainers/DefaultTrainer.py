@@ -195,8 +195,8 @@ class DefaultTrainer:
             self._check_exit_conditions_epoch_iteration()
             self._scheduler.step()
         self._model.eval()
-        # if overlap / count > 0.85:
-        #     self._stable = True
+        if overlap / count > 0.85:
+            self._stable = True
         print(overlap / count)
 
     def _log(self, batch_num: int):
