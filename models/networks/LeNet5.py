@@ -36,7 +36,7 @@ class LeNet5(Pruneable):
 
         self.fc = nn.Sequential(
             nn.Dropout(p=0.3, inplace=False),
-            self.Linear(120*PROD_MIDDLE_POOL, 84, bias=True, gain=gain),
+            self.Linear(120 * PROD_MIDDLE_POOL, 84, bias=True, gain=gain),
             nn.BatchNorm1d(84, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.LeakyReLU(leak),
 
@@ -56,6 +56,7 @@ if __name__ == '__main__':
     device = "cuda"
 
     mnist = torch.randn((21, 1, 28, 28)).to(device)
+    kmnist = torch.randn((21, 1, 28, 28)).to(device)
     cifar = torch.randn((21, 3, 32, 32)).to(device)
     imagenet = torch.randn((2, 4, 244, 244)).to(device)
 

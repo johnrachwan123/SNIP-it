@@ -22,7 +22,7 @@ class General(GeneralModel):
     def get_grow_indices(self, *args, **kwargs):
         raise NotImplementedError
 
-    def grow(self, percentage):
+    def grow(self, percentage, train_loader):
 
         if not self.model.is_growable:
             raise Exception("growing is off")

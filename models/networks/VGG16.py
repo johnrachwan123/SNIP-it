@@ -72,6 +72,7 @@ class VGG16(Pruneable):
     def forward(self, x):
         for feat in [self.features1, self.features2, self.features3, self.features4, self.features5]:
             x = feat.forward(x)
+
         # x = self.features.forward(x)
         x = self.avg_pool.forward(x)
         x = x.view(x.shape[0], -1)

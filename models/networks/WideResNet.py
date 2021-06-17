@@ -8,10 +8,9 @@ import torchvision.models as models
 
 
 class WideResNet(Pruneable):
-
     def __init__(self, device="cuda", output_dim=2, input_dim=(1, 1, 1), **kwargs):
         super(WideResNet, self).__init__(device=device, output_dim=output_dim, input_dim=input_dim, **kwargs)
-        widen_factor = 2
+        widen_factor = 4
         depth = 22
         dropRate = 0.3
         num_classes = 10

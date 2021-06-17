@@ -255,6 +255,9 @@ class Metrics:
         if trainer_ns._arguments.l0:
             flattend = element.sample_weights().flatten()
         else:
+            # all_scores, grads, log10, norm_factor = trainer_ns._criterion.get_weight_saliencies(trainer_ns._train_loader)
+            # breakpoint()
+            # flattend = grads[name].flatten().log()
             flattend = trainer_ns._model.state_dict()[name].flatten()
         return flattend
 

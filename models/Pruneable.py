@@ -9,7 +9,6 @@ from utils.constants import ZERO_SIGMA
 
 
 class Pruneable(GeneralModel):
-
     """
 
     Defines and manages a pruneable model and gathers statistics
@@ -31,6 +30,7 @@ class Pruneable(GeneralModel):
                  l0_reg=1.0,
                  l2_reg=0.0,
                  **kwargs):
+        self.hooks = {}
         self.l2_reg = l2_reg
         self.l0_reg = l0_reg
         self.maintain_outer_mask_anyway = maintain_outer_mask_anyway
@@ -75,6 +75,27 @@ class Pruneable(GeneralModel):
         else:
             self.Linear = ContainerLinear
             self.Conv2d = ContainerConv2d
+
+    def add_hooks(self):
+        def get_activation(name):
+            def hook(model, input, output):
+                # if self.hooks[name] is not None:
+                #     self.hooks[name].append(output.detach())
+                # else:
+                if len(output.detach().shape) == 4:
+                    temp = torch.mean(output.detach(), (2, 3)).T.detach().cpu().numpy()
+                else:
+                    temp = output.detach().T.detach().cpu().numpy()
+                if name in self.hooks.keys():
+                    self.hooks[name].append(temp)
+                else:
+                    self.hooks[name] = [temp]
+
+            return hook
+
+        for name, module in self.named_modules():
+            if isinstance(module, (nn.Linear, nn.Conv2d)):
+                module.register_forward_hook(get_activation(name))
 
     def post_init_implementation(self):
 
@@ -303,6 +324,12 @@ class Pruneable(GeneralModel):
     def pruned_percentage(self):
         return (self.number_of_pruned_weights + (self.weight_count - self._get_weight_count())) / (
                 self.weight_count + 1e-6)
+
+    def get_weight_counts(self):
+        return self.weight_count, self.get_weight_counts()
+
+    def reset_weight_counts(self):
+        self.weight_count = self._get_weight_count()
 
     @property
     def structural_sparsity(self):

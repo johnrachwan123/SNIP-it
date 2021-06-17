@@ -29,7 +29,6 @@ class SNIP(General):
     def prune(self, percentage, train_loader=None, manager=None, **kwargs):
 
         all_scores, grads_abs, log10, norm_factor = self.get_weight_saliencies(train_loader)
-
         self.handle_pruning(all_scores, grads_abs, log10, manager, norm_factor, percentage)
 
     def handle_pruning(self, all_scores, grads_abs, log10, manager, norm_factor, percentage):
@@ -61,7 +60,9 @@ class SNIP(General):
             print("pruning", cutoff, "percentage", cutoff / length_nonzero, "length_nonzero", length_nonzero)
         self.model.apply_weight_mask()
         print("final percentage after snip:", self.model.pruned_percentage)
-        self.cut_lonely_connections()
+
+        # TODO: Implement this?
+        # self.cut_lonely_connections()
 
     def get_weight_saliencies(self, train_loader):
 

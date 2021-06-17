@@ -5,22 +5,16 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.criterions.SNIP import SNIP
+from models.criterions.SNAP import SNAP
+from models.criterions.SNAP_tbd import SNAP_tbd
 from utils.constants import SNIP_BATCH_ITERATIONS
+from collections import OrderedDict
 
 
-class GRASP(SNIP):
-
-    """
-    Adapted implementation of GraSP from the paper:
-    Picking Winning Tickets Before Training by Preserving Gradient Flow
-    https://arxiv.org/abs/2002.07376
-    from the authors' github:
-    https://github.com/alecwangcq/GraSP
-    """
+class StructuredEFG(SNAP_tbd):
 
     def __init__(self, *args, **kwargs):
-        super(GRASP, self).__init__(*args, **kwargs)
+        super(StructuredEFG, self).__init__(*args, **kwargs)
 
     def get_prune_indices(self, *args, **kwargs):
         raise NotImplementedError
@@ -30,34 +24,49 @@ class GRASP(SNIP):
 
     def get_weight_saliencies(self, train_loader):
 
-        device = self.model.device
+        # copy network
+        self.model = self.model.cpu()
+        net = copy.deepcopy(self.model)
+        net = net.to(self.device)
+        net = net.eval()
+
+        # insert c to gather elasticities
+        self.insert_governing_variables(net)
 
         iterations = SNIP_BATCH_ITERATIONS
-
-        net = self.model.eval()
+        device = self.model.device
 
         self.their_implementation(device, iterations, net, train_loader)
 
-        # collect gradients
-        grads = {}
+        # gather elasticities
+        grads_abs = OrderedDict()
+        grads_abs2 = OrderedDict()
         for name, layer in net.named_modules():
             if "Norm" in str(layer): continue
-            if name + ".weight" in self.model.mask:
-                grads[name + ".weight"] = -layer.weight.data * layer.weight.grad
+            name_ = f"{name}.weight"
+            if hasattr(layer, "gov_in"):
+                for (identification, param) in [(id(param), param) for param in [layer.gov_in, layer.gov_out] if
+                                                param.requires_grad]:
+                    try:
+                        grad_ab = torch.abs(param.grad.data)
+                    except:
+                        grad_ab = torch.zeros_like(param.data)
+                    grads_abs2[(identification, name_)] = grad_ab
+                    if identification not in grads_abs:
+                        grads_abs[identification] = grad_ab
 
-        # Gather all scores in a single vector and normalise
-        all_scores = torch.cat([torch.flatten(x) for _, x in grads.items()])
+        # reset model
+        net = net.cpu()
+        del net
+        self.model = self.model.to(self.device)
+        self.model = self.model.train()
 
-        so = all_scores.sort().values
-
+        all_scores = torch.cat([torch.flatten(x) for _, x in grads_abs.items()])
         norm_factor = 1
-        log10 = so.log10()
         all_scores.div_(norm_factor)
 
-        self.model = self.model.train()
-        self.model.zero_grad()
-
-        return all_scores, grads, log10, norm_factor
+        log10 = all_scores.sort().values.log10()
+        return all_scores, grads_abs2, log10, norm_factor, [x.shape[0] for x in grads_abs.values()]
 
     def their_implementation(self, device, iterations, net, train_loader):
         net.zero_grad()
@@ -102,8 +111,8 @@ class GRASP(SNIP):
             grad_f = autograd.grad(loss, weights, create_graph=True)
             z = 0
             count = 0
-            for layer in net.modules():
+            for name, layer in net.named_modules():
                 if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
-                    z += (grad_w[count] * grad_f[count]).sum()
+                    z += (grad_w[count] * grad_f[count] * self.model.mask[name + ".weight"]).sum()
                     count += 1
             z.backward()

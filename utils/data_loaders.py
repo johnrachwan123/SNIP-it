@@ -33,8 +33,14 @@ def get_imagenette_loaders(arguments):
         ]
     )
 
-    train_set = torchvision.datasets.ImageFolder(os.path.join(IMAGENETTE_DIR, "train"), transform=transformers)
-    test_set = torchvision.datasets.ImageFolder(os.path.join(IMAGENETTE_DIR, "val"), transform=transformers)
+    train_set = torchvision.datasets.ImageFolder(
+        os.path.join("/nfs/homedirs/rachwan/earlypruning/gitignored/data/imagenette2-160", "train"),
+        transform=transformers)
+    test_set = torchvision.datasets.ImageFolder(
+        os.path.join("/nfs/homedirs/rachwan/earlypruning/gitignored/data/imagenette2-160", "val"),
+        transform=transformers)
+    # train_set = torchvision.datasets.ImageFolder(os.path.join(IMAGENETTE_DIR, "train"), transform=transformers)
+    # test_set = torchvision.datasets.ImageFolder(os.path.join(IMAGENETTE_DIR, "val"), transform=transformers)
 
     return load(arguments, test_set, train_set)
 
@@ -114,29 +120,27 @@ def get_kmnist_loaders(arguments):
     )
     return load(arguments, test_set, train_set)
 
+
 def get_cifar10_loaders(arguments):
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    test_transforms = transforms.Compose(
+    mean = (0.4914, 0.4822, 0.4465)
+    std = (0.2471, 0.2435, 0.2616)
+    transform = transforms.Compose(
         [
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std)
+            transforms.Normalize(mean, std),
         ]
     )
-    train_transforms = transforms.Compose(
-        (
-            [] if arguments.preload_all_data
-            else [
-                transforms.RandomHorizontalFlip(p=FLIP_CHANCE),
-            ]
-        ) +
+    train_set = datasets.CIFAR10(DATASET_PATH, train=True, transform=transform)
+
+    transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std)
+            transforms.Normalize(mean, std),
         ]
     )
-    train_set = datasets.CIFAR10(DATASET_PATH, train=True, download=True, transform=train_transforms)
-    test_set = datasets.CIFAR10(DATASET_PATH, train=False, download=True, transform=test_transforms)
+    test_set = datasets.CIFAR10(root=DATASET_PATH, train=False, transform=transform)
     return load(arguments, test_set, train_set)
 
 
@@ -196,17 +200,14 @@ def load(arguments, test_set, train_set):
 def get_cifar100_loaders(arguments):
     if arguments.preload_all_data: raise NotImplementedError
 
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+    mean = [0.5071, 0.4867, 0.4408]
+    std = [0.2675, 0.2565, 0.2761]
     train_loader = torch.utils.data.DataLoader(
         datasets.CIFAR100(DATASET_PATH, train=True, download=True,
-                          transform=transforms.Compose([
-                              transforms.RandomHorizontalFlip(p=0.2),
-                              transforms.RandomAffine(5),
-                              transforms.ToTensor(),
-                              transforms.Normalize(mean=mean,
-                                                   std=std)
-                          ])),
+                          transform=transforms.Compose([transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+                                                        transforms.RandomHorizontalFlip(),
+                                                        transforms.ToTensor(),
+                                                        transforms.Normalize(mean, std, inplace=True)])),
         batch_size=arguments.batch_size,
         shuffle=True,
         pin_memory=True,
@@ -215,11 +216,7 @@ def get_cifar100_loaders(arguments):
 
     test_loader = torch.utils.data.DataLoader(
         datasets.CIFAR100(DATASET_PATH, train=False, download=True,
-                          transform=transforms.Compose([transforms.ToTensor(),
-                                                        transforms.Normalize(mean=mean,
-                                                                             std=std)
-
-                                                        ])),
+                          transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])),
         batch_size=arguments.batch_size,
         shuffle=True,
         pin_memory=True,

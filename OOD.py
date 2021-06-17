@@ -19,7 +19,7 @@ def get_arguments():
 
 
 def load_checkpoint(model):
-    path = os.path.join(RESULTS_DIR, "2020-12-10_21.12.03morgane_john_98", MODELS_DIR, "LeNet5_finished")
+    path = os.path.join(RESULTS_DIR, "2021-04-14_16.12.24_example_runname", MODELS_DIR, "LeNet5_finished")
     state = DATA_MANAGER.load_python_obj(path)
     try:
         model.load_state_dict(state)

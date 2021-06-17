@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 from models.Pruneable import Pruneable
-
 import numpy as np
 
 class LeNet300(Pruneable):
@@ -14,7 +13,7 @@ class LeNet300(Pruneable):
 
         leak = 0.05
         gain = nn.init.calculate_gain('leaky_relu', leak)
-
+        # breakpoint()
         self.layers = nn.Sequential(
             self.Linear(input_dim=input_dim, output_dim=300, bias=True, gain=gain),
             nn.BatchNorm1d(300, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
@@ -28,7 +27,6 @@ class LeNet300(Pruneable):
     def forward(self, x: torch.Tensor):
         x = x.view(x.shape[0], -1)
         return self.layers.forward(x)
-
 
 if __name__ == '__main__':
     device = "cuda"

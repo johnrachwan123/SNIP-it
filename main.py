@@ -34,7 +34,6 @@ def main(
 
     # filter for incompatible properties
     assert_compatibilities(arguments)
-
     # get model
     model: GeneralModel = find_right_model(
         NETWORKS_DIR, arguments.model,
@@ -152,9 +151,9 @@ def assert_compatibilities(arguments):
     check_incompatible_props([arguments.train_scheme != "L0Trainer", arguments.l0], "l0", arguments.train_scheme)
     check_incompatible_props([arguments.l0, arguments.group_hoyer_square, arguments.hoyer_square],
                              "Choose one mode, not multiple")
-    check_incompatible_props(
-        ["Structured" in arguments.prune_criterion, "Group" in arguments.prune_criterion, "ResNet" in arguments.model],
-        "structured", "residual connections")
+    # check_incompatible_props(
+    #     ["Structured" in arguments.prune_criterion, "Group" in arguments.prune_criterion, "ResNet" in arguments.model],
+    #     "structured", "residual connections")
     # todo: add more
 
 

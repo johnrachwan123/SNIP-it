@@ -1,11 +1,15 @@
-from models.criterions.SNIP import SNIP
+from models.criterions.GRASP import GRASP
 
 
-class EarlySNIP(SNIP):
+class GRASPit(GRASP):
+    """
+    Original creation from our paper:  https://arxiv.org/abs/2006.00896
+    Implements SNIP-it (before training)
+    """
 
-    def __init__(self, *args, limit=0.0, steps=100, **kwargs):
+    def __init__(self, *args, limit=0.0, steps=10, **kwargs):
         self.limit = limit
-        super(EarlySNIP, self).__init__(*args, **kwargs)
+        super(GRASPit, self).__init__(*args, **kwargs)
         self.steps = [limit - (limit - 0.5) * (0.5 ** i) for i in range(steps + 1)] + [limit]
 
     def get_prune_indices(self, *args, **kwargs):

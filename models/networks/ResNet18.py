@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from models.Pruneable import Pruneable
-from models.networks.assisting_layers.ResNetLayers import BasicBlock
+from models.networks.assisting_layers.ResNetLayers import BasicBlock, BasicBlock_downsample
 from utils.constants import PROD_SMALL_POOL, SMALL_POOL
 
 
@@ -15,7 +15,7 @@ class ResNet18(Pruneable):
 
         leak = 0.05
         gain = nn.init.calculate_gain('leaky_relu', leak)
-
+        self.hooks = {}
         self.conv1 = self.Conv2d(channels, 64,
                                  kernel_size=7,
                                  stride=2,
@@ -34,17 +34,17 @@ class ResNet18(Pruneable):
         ).to(device)
 
         self.layer2 = nn.Sequential(
-            BasicBlock(input_dim=64, output_dim=128, downsample=True, conv_layer=self.Conv2d),
+            BasicBlock_downsample(input_dim=64, output_dim=128, downsample=True, conv_layer=self.Conv2d),
             BasicBlock(input_dim=128, output_dim=128, conv_layer=self.Conv2d)
         ).to(device)
 
         self.layer3 = nn.Sequential(
-            BasicBlock(input_dim=128, output_dim=256, downsample=True, conv_layer=self.Conv2d),
+            BasicBlock_downsample(input_dim=128, output_dim=256, downsample=True, conv_layer=self.Conv2d),
             BasicBlock(input_dim=256, output_dim=256, conv_layer=self.Conv2d)
         ).to(device)
 
         self.layer4 = nn.Sequential(
-            BasicBlock(input_dim=256, output_dim=512, downsample=True, conv_layer=self.Conv2d),
+            BasicBlock_downsample(input_dim=256, output_dim=512, downsample=True, conv_layer=self.Conv2d),
             BasicBlock(input_dim=512, output_dim=512, conv_layer=self.Conv2d)
         ).to(device)
 
@@ -52,7 +52,7 @@ class ResNet18(Pruneable):
 
         self.fc = nn.Sequential(
             nn.Dropout(p=0.3, inplace=False),
-            self.Linear(input_dim=512*PROD_SMALL_POOL, output_dim=256, bias=True, gain=gain),
+            self.Linear(input_dim=512 * PROD_SMALL_POOL, output_dim=256, bias=True, gain=gain),
             nn.BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.LeakyReLU(leak),
             nn.Dropout(p=0.3, inplace=False),
@@ -79,7 +79,6 @@ class ResNet18(Pruneable):
 
 if __name__ == '__main__':
     device = "cpu"
-
 
     mnist = torch.randn((21, 1, 28, 28)).to(device)
     print(ResNet18(output_dim=10, input_dim=mnist.shape[1:], device=device))

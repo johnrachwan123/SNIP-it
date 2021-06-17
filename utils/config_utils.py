@@ -40,7 +40,7 @@ def parse() -> argparse.Namespace:
     parser.add_argument('--save_freq', default=1e6, type=int,
                         help='save model every n epochs, besides before and after training')
     parser.add_argument('--batch_size', default=512, type=int, help='size of batches')
-    parser.add_argument("--seed", type=int, default=333, help="random seed")
+    parser.add_argument("--seed", type=int, default=465, help="random seed")
     parser.add_argument('--max_training_minutes', default=TIMEOUT, type=int,
                         help="process killed after n minutes (after finish of epoch)")
     parser.add_argument('--plot_weights_freq', default=50, type=int,
@@ -71,6 +71,8 @@ def parse() -> argparse.Namespace:
                         help="Prune until here, if structured in nodes, if unstructured in weights. most criterions use this instead of the pruning_rate")
     parser.add_argument('--learning_rate', default=2e-3, type=float, help='learning rate')
     parser.add_argument('--grad_clip', default=10, type=float, help='max norm gradients')
+    parser.add_argument('--prune_to', default=5, type=int, help='early pruning point')
+    parser.add_argument('--structured_prior', default='0', type=int, help='structured prune before performing the rest')
     parser.add_argument('--grad_noise', default=0, type=float, help='added gaussian noise to gradients')
     parser.add_argument('--l2_reg', default=5e-5, type=float, help='weight decay')
     parser.add_argument('--l1_reg', default=0, type=float, help='l1-norm regularisation')

@@ -15,8 +15,7 @@ from utils.data_utils import lookahead_type, lookahead_finished
 from utils.snip_utils import group_snip_forward_linear, group_snip_conv2d_forward
 
 
-class SNAP(General):
-
+class SNAP_tbd(General):
     """
     Original creation from our paper:  https://arxiv.org/abs/2006.00896
     Implements SNAP (structured), which is one of the steps from the algorithm SNAP-it
@@ -24,7 +23,7 @@ class SNAP(General):
     """
 
     def __init__(self, *args, **kwargs):
-        super(SNAP, self).__init__(*args, **kwargs)
+        super(SNAP_tbd, self).__init__(*args, **kwargs)
 
     def get_prune_indices(self, *args, **kwargs):
         raise NotImplementedError
@@ -32,8 +31,46 @@ class SNAP(General):
     def get_grow_indices(self, *args, **kwargs):
         raise NotImplementedError
 
-    def prune(self, percentage, train_loader=None, manager=None, **kwargs):
+    def prep_indices(self, indices):
 
+        input = True
+        prev_key = None
+        step2_key = None
+        # breakpoint()
+        # 1
+
+        indices[(39, 'layer4.1.conv2.weight')] = indices[(40, 'fc.1.weight')]
+        indices[(36, 'layer4.1.pruneinput1.weight')] = indices[(40, 'fc.1.weight')]
+        indices[(35, 'layer4.0.downsample.0.weight')] = indices[(40, 'fc.1.weight')]
+        indices[(33, 'layer4.0.conv2.weight')] = indices[(40, 'fc.1.weight')]
+
+        indices[(34, 'layer4.0.downsample.0.weight')] = indices[(29, 'layer3.1.conv2.weight')]
+
+        #2
+        indices[(29, 'layer3.1.conv2.weight')] = indices[(30, 'layer4.0.dontpruneinput1.weight')]
+        indices[(26, 'layer3.1.pruneinput1.weight')] = indices[(30, 'layer4.0.dontpruneinput1.weight')]
+        indices[(25, 'layer3.0.downsample.0.weight')] = indices[(30, 'layer4.0.dontpruneinput1.weight')]
+        indices[(23, 'layer3.0.conv2.weight')] = indices[(30, 'layer4.0.dontpruneinput1.weight')]
+
+        indices[(24, 'layer3.0.downsample.0.weight')] = indices[(19, 'layer2.1.conv2.weight')]
+
+        #3
+        indices[(19, 'layer2.1.conv2.weight')] = indices[(20, 'layer3.0.dontpruneinput1.weight')]
+        indices[(16, 'layer2.1.pruneinput1.weight')] = indices[(20, 'layer3.0.dontpruneinput1.weight')]
+        indices[(15, 'layer2.0.downsample.0.weight')] = indices[(20, 'layer3.0.dontpruneinput1.weight')]
+        indices[(13, 'layer2.0.conv2.weight')] = indices[(20, 'layer3.0.dontpruneinput1.weight')]
+
+        indices[(14, 'layer2.0.downsample.0.weight')] = indices[(9, 'layer1.1.conv2.weight')]
+        #4
+        indices[(9, 'layer1.1.conv2.weight')] = indices[(10, 'layer2.0.dontpruneinput1.weight')]
+        indices[(6, 'layer1.1.pruneinput1.weight')] = indices[(10, 'layer2.0.dontpruneinput1.weight')]
+        indices[(5, 'layer1.0.conv2.weight')] = indices[(10, 'layer2.0.dontpruneinput1.weight')]
+        indices[(2, 'layer1.0.pruneinput1.weight')] = indices[(10, 'layer2.0.dontpruneinput1.weight')]
+        indices[(1, 'conv1.weight')] = indices[(10, 'layer2.0.dontpruneinput1.weight')]
+
+        return indices
+
+    def prune(self, percentage, train_loader=None, manager=None, **kwargs):
         all_scores, grads_abs, log10, norm_factor, vec_shapes = self.get_weight_saliencies(train_loader)
 
         manager.save_python_obj(all_scores.cpu().numpy(),
@@ -44,7 +81,6 @@ class SNAP(General):
     def handle_pruning(self, all_scores, grads_abs, norm_factor, percentage):
         summed_weights = sum([np.prod(x.shape) for name, x in self.model.named_parameters() if "weight" in name])
         num_nodes_to_keep = int(len(all_scores) * (1 - percentage))
-
         # handle outer layers
         if not self.model._outer_layer_pruning:
             offsets = [len(x[0][1]) for x in lookahead_finished(grads_abs.items()) if x[1][0] or x[1][1]]
@@ -67,8 +103,13 @@ class SNAP(General):
         toggle_row_column = True
         cutoff = 0
         length_nonzero = 0
+        indices = {}
+        i = 0
         for ((identification, name), grad), (first, last) in lookahead_finished(grads_abs.items()):
-
+            indices[(i, name)] = ((grad / norm_factor) >= acceptable_score).int()
+            i += 1
+        indices = self.prep_indices(indices)
+        for ((identification, name), grad), (first, last) in lookahead_finished(indices.items()):
             binary_keep_neuron_vector = ((grad / norm_factor) >= acceptable_score).float().to(self.device)
             corresponding_weight_parameter = [val for key, val in self.model.named_parameters() if key == name][0]
             is_conv = len(corresponding_weight_parameter.shape) > 2
@@ -127,8 +168,6 @@ class SNAP(General):
                              toggle_row_column,
                              weight):
 
-
-
         indices = binary_vector.bool()
         length_nonzero_before = int(np.prod(weight.shape))
         n_remaining = binary_vector.sum().item()
@@ -159,7 +198,10 @@ class SNAP(General):
         length_nonzero = int(np.prod(weight.shape))
         cutoff = 0
         if is_conv:
-            weight.data = weight[:, indices, :, :]
+            try:
+                weight.data = weight[:, indices, :, :]
+            except:
+                breakpoint()
             try:
                 weight.grad.data = weight.grad.data[:, indices, :, :]
             except AttributeError:
@@ -167,7 +209,7 @@ class SNAP(General):
             if name in self.model.mask:
                 self.model.mask[name] = self.model.mask[name][:, indices, :, :]
         else:
-            if ((weight.shape[1] % indices.shape[0]) == 0) and not (weight.shape[1] == indices.shape[0]):
+            if ((indices.shape[0] % weight.shape[0]) == 0) and not (weight.shape[1] == indices.shape[0]):
                 ratio = weight.shape[1] // indices.shape[0]
                 module.update_input_dim(n_remaining * ratio)
                 new_indices = torch.repeat_interleave(indices, ratio)
@@ -216,22 +258,51 @@ class SNAP(General):
 
     def handle_bias(self, indices, name):
         """ shrinks a bias """
-        bias = [val for key, val in self.model.named_parameters() if key == name.split("weight")[0] + "bias"][0]
-        bias.data = bias[indices]
+        bias = [val for key, val in self.model.named_parameters() if
+                key == name.split("weight")[0] + "bias" or key == 'bn' + name.split("weight")[0][-2] + ".bias"]
+        if len(bias) == 1:
+            bias = bias[0]
+        elif len(bias) > 1:
+            bias = bias[-1]
+        else:
+            return
+        # bias = bias[0] if len(bias)==0 else bias[1]
+        try:
+            bias.data = bias[indices]
+        except:
+            pass
         try:
             bias.grad.data = bias.grad.data[indices]
-        except AttributeError:
+        except:
             pass
 
     def handle_batch_norm(self, indices, n_remaining, name):
         """ shrinks a batchnorm layer """
+        if 'layer' in name:
+            if 'downsample' in name:
+                batchnorm = [val for key, val in self.model.named_modules() if
+                             key == name.split(".weight")[0][:-1] + str(int(name.split(".weight")[0][-1]) + 1)][0]
+            else:
+                batchnorm = [val for key, val in self.model.named_modules() if
+                             key == name.split(".")[0] + "." + name.split(".")[1] + ".bn" + str(
+                                 int(name.split(".weight")[0][-1]))][0]
+        else:
 
-        batchnorm = [val for key, val in self.model.named_modules() if
-                     key == name.split(".weight")[0][:-1] + str(int(name.split(".weight")[0][-1]) + 1)][0]
+            batchnorm = [val for key, val in self.model.named_modules() if key == name.split(".weight")[0][:-1] + str(
+                int(name.split(".weight")[0][-1]) + 1) or key == 'bn' + str(int(name.split(".weight")[0][-1]))]
+            if len(batchnorm) == 1:
+                batchnorm = batchnorm[0]
+            elif len(batchnorm) > 1:
+                batchnorm = batchnorm[-1]
+            else:
+                return
         if isinstance(batchnorm, (nn.BatchNorm2d, nn.BatchNorm1d, GatedBatchNorm)):
             batchnorm.num_features = n_remaining
             from_size = len(batchnorm.bias.data)
-            batchnorm.bias.data = batchnorm.bias[indices]
+            try:
+                batchnorm.bias.data = batchnorm.bias[indices]
+            except:
+                breakpoint()
             batchnorm.weight.data = batchnorm.weight[indices]
             try:
                 batchnorm.bias.grad.data = batchnorm.bias.grad[indices]
@@ -384,7 +455,10 @@ class SNAP(General):
                 layer.gov_in = gov_in
 
                 layer.weight.requires_grad = False
-                layer.bias.requires_grad = False
+                try:
+                    layer.bias.requires_grad = False
+                except:
+                    pass
 
             # substitute activation function
             if is_fc:

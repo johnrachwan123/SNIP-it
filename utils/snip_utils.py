@@ -23,6 +23,7 @@ def snip_forward_linear(self, x):
 def group_snip_forward_linear(self, x):
     return F.linear(x.float(),
                     self.weight,
+                    # gov_out are new
                     bias=self.bias.float()) * self.gov_out.float()
 
 

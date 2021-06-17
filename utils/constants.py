@@ -6,7 +6,7 @@ from utils.data_manager import DataManager
 
 
 
-PROJ_NAME = "SNIP-it"
+PROJ_NAME = "earlypruning"
 WORKING_DIR_PATH = "."
 
 # output
@@ -71,20 +71,27 @@ NUM_WORKERS = 6
 FLIP_CHANCE = 0.2
 STRUCTURED_SINGLE_SHOT = [
     "SNAP",
+    "SNAP_tbd",
     "SNAPit",
     "StructuredRandom",
     "StructuredGRASP",
-    "GateDecorators",
     "CNIP",
     "CNIPit",
+    "StructuredEFG",
+    "StructuredEFGit",
+    "EarlyStructuredEFGit"
 ]
 SINGLE_SHOT = [
     "SNIP",
     "SNIPit",
     "GRASP",
-    "GraSPit",
+    "John",
+    "GRASPit",
+    "Johnit",
     "UnstructuredRandom",
-    "EarlySNIP"
+    "EarlySNIP",
+    "EarlyGRASP",
+    "EarlyJohn"
 ]
 SINGLE_SHOT += STRUCTURED_SINGLE_SHOT
 DURING_TRAINING = [
@@ -106,7 +113,7 @@ alias = {
     "IMP": "IMP-global (during)",
     "L0": "L0 (during)",
     "GRASP": "GraSP (before)",
-    "GraSPit": "Iterative GraSP",
+    "GRASPit": "Iterative GraSP",
     "SNIP": "SNIP (before)",
     "GateDecorators": "GateDecorators (after)",
     "CNIPit": "CNIP-it (before)",
@@ -132,7 +139,7 @@ timing_names = {
     "IMP": "during",
     "L0": "during",
     "GRASP": "before",
-    "GraSPit": "before",
+    "GRASPit": "before",
     "SNIP": "before",
     "GateDecorators": "after",
     "CNIPit": "before",
@@ -151,7 +158,7 @@ color_per_method = {
     "IMP": "#9467bd",
     "L0": "#d62728",
     "GRASP": "#ff7f0e",
-    "GraSPit": "#ff7f0e",
+    "GraSPit": "#ff7f0f",
     "SNIP": "#7f7f7f",
     "GateDecorators": "#ff7f0e",
     "CNIPit": "#ff7f0e",
